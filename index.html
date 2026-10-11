@@ -12,10 +12,10 @@
 <title>名古屋伊勢志摩 8 天行程</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
-/* Layout: Google-Calendar-style date strip on top, one day's agenda below as colour-coded event cards; tap a card to expand details, links, a memo and a cost field (JPY → TWD). Last tab = flights / hotels / budget / shopping list. */
+/* Layout: Google-Calendar-style date strip, one day's agenda as colour-coded cards. Edit mode lets the itinerary itself be rebuilt (add / edit / reorder / move / delete); every card has a rich memo (cost, buy, shoot, notes, links, photos). Text in localStorage, photos in IndexedDB, with JSON backup/restore. */
 :root{
   --bg:#f8faf6;--card:#ffffff;--fg:#333a35;--muted:#7b847e;--line:#e4eae1;--field:#f3f6f1;
-  --accent:#5fae98;--accent-soft:#e3f2ec;
+  --accent:#5fae98;--accent-soft:#e3f2ec;--danger:#d9776a;
   --c-transport:#6f9fd6;--c-transport-bg:#eaf2fb;
   --c-sight:#5fae98;--c-sight-bg:#e3f2ec;
   --c-food:#ea8f7c;--c-food-bg:#fdeae5;
@@ -26,12 +26,12 @@
   --body:"Noto Sans TC","Zen Maru Gothic","PingFang TC","Microsoft JhengHei",sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#1b211e;--card:#252d29;--fg:#eef2ef;--muted:#99a59e;--line:#34403a;--field:#1f2622;--accent:#7cc7b0;--accent-soft:#294439;
+  --bg:#1b211e;--card:#252d29;--fg:#eef2ef;--muted:#99a59e;--line:#34403a;--field:#1f2622;--accent:#7cc7b0;--accent-soft:#294439;--danger:#e8907f;
   --c-transport:#8db7e6;--c-transport-bg:#27394c;--c-sight:#7cc7b0;--c-sight-bg:#244238;--c-food:#f2a493;--c-food-bg:#48322e;
   --c-hotel:#bfa5e2;--c-hotel-bg:#382f47;--c-shop:#e8c265;--c-shop-bg:#483f26;
   --shadow:0 3px 14px rgba(0,0,0,.35);color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#1b211e;--card:#252d29;--fg:#eef2ef;--muted:#99a59e;--line:#34403a;--field:#1f2622;--accent:#7cc7b0;--accent-soft:#294439;
+  --bg:#1b211e;--card:#252d29;--fg:#eef2ef;--muted:#99a59e;--line:#34403a;--field:#1f2622;--accent:#7cc7b0;--accent-soft:#294439;--danger:#e8907f;
   --c-transport:#8db7e6;--c-transport-bg:#27394c;--c-sight:#7cc7b0;--c-sight-bg:#244238;--c-food:#f2a493;--c-food-bg:#48322e;
   --c-hotel:#bfa5e2;--c-hotel-bg:#382f47;--c-shop:#e8c265;--c-shop-bg:#483f26;
   --shadow:0 3px 14px rgba(0,0,0,.35);color-scheme:dark}
@@ -39,18 +39,31 @@
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);line-height:1.6;font-size:15px}
 a{color:inherit}
-button,input,textarea{font-family:inherit;color:inherit;font-size:inherit}
+button,input,textarea,select{font-family:inherit;color:inherit;font-size:inherit}
 button{cursor:pointer}
 .wrap{max-width:720px;margin:0 auto;padding-inline:16px;padding-block:0 56px}
 h1,h2,h3{font-family:var(--display);font-weight:500;text-wrap:balance}
+input[type=text],input[type=number],input[type=url],input[type=time],textarea,select{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--card);font-size:14px}
+textarea{min-height:56px;resize:vertical}
+.field{display:grid;gap:4px}
+.field label{font-size:12px;color:var(--muted);font-family:var(--display);font-weight:700}
+.btn{border:0;border-radius:999px;padding:7px 16px;font-family:var(--display);font-weight:700;font-size:13.5px;display:inline-flex;align-items:center;gap:4px}
+.btn.ok{background:var(--accent);color:#fff}
+.btn.cancel{background:var(--card);color:var(--muted);border:1px solid var(--line)}
+.btn.danger{background:none;color:var(--danger);border:1px solid var(--danger)}
+.btn.sm{padding:4px 10px;font-size:12.5px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:13px;text-decoration:none;border:0;border-radius:999px;padding:5px 12px;color:#fff;background:var(--accent);font-family:var(--display);font-weight:700}
+.chip.alt{background:var(--card);color:var(--accent);border:1px solid var(--accent)}
+.hint{font-size:12px;color:var(--muted);margin:6px 0 0}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:10px}
 
-/* hero */
 .hero{padding-block:22px 10px}
 .hero .eyebrow{font-family:var(--display);font-weight:700;color:var(--accent);letter-spacing:.08em;font-size:12px}
 .hero h1{font-size:clamp(22px,5.5vw,28px);line-height:1.3;margin:4px 0 4px}
 .hero p{margin:0;color:var(--muted);font-size:14px}
+.cd{display:inline-block;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:1px 10px;font-size:12px;font-family:var(--display);font-weight:700}
+.cd:empty{display:none}
 
-/* date strip (calendar style) */
 .strip{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);margin-inline:-16px;padding:8px 16px 10px;border-bottom:1px solid var(--line)}
 .strip-scroll{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;justify-content:space-between}
 .strip-scroll::-webkit-scrollbar{display:none}
@@ -60,24 +73,28 @@ h1,h2,h3{font-family:var(--display);font-weight:500;text-wrap:balance}
 .dt i{font-style:normal;font-size:10px;color:var(--muted)}
 .dt[aria-selected="true"] b{background:var(--accent);color:#fff}
 .dt[aria-selected="true"] small,.dt[aria-selected="true"] i{color:var(--accent);font-weight:700}
-.dt:focus-visible,.card-h:focus-visible,.chip:focus-visible,.tbtn:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:12px}
+.dt.today b{box-shadow:0 0 0 2px var(--accent) inset}
 
-/* day panel */
 section.day{display:none;padding-top:14px}
 section.day.on{display:block}
-.day-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.day-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
 .day-h h2{font-size:20px;margin:0}
 .day-h .d{font-size:13px;color:var(--muted)}
 .day-h .tag{font-size:12px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 10px;font-family:var(--display);font-weight:700}
+.day-h .sp{flex:1}
+.edit-tog{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:4px 12px;font-size:12.5px;font-family:var(--display);font-weight:700;color:var(--muted)}
+.edit-tog[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 .ov{background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:12px 14px;display:grid;gap:6px;margin-bottom:14px}
 .ov div{display:grid;grid-template-columns:24px 40px 1fr;gap:6px;font-size:13.5px;align-items:start}
 .ov .l{color:var(--muted);font-family:var(--display);font-weight:700}
 .ov .v{min-width:0;overflow-wrap:anywhere}
-.ov .act{grid-template-columns:1fr;margin-top:4px}
+.next{background:var(--accent-soft);border-radius:12px;padding:8px 12px;font-size:13.5px;margin-bottom:10px}
+.next b{color:var(--accent);font-family:var(--display);font-weight:700;margin-right:4px}
 .sum{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin:14px 2px 0;font-variant-numeric:tabular-nums}
 .sum b{color:var(--fg);font-family:var(--display);font-weight:700}
+.pager{display:flex;justify-content:space-between;margin-top:14px}
+.pg{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;font-size:13.5px;font-family:var(--display);font-weight:700;color:var(--accent)}
 
-/* agenda */
 .ag{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .ag li{display:grid;grid-template-columns:54px 1fr;gap:8px;align-items:start}
 .time{font-family:var(--display);font-weight:500;font-size:12.5px;line-height:1.3;color:var(--muted);padding-top:12px;font-variant-numeric:tabular-nums}
@@ -94,55 +111,73 @@ li.open .arr{transform:rotate(180deg)}
 .badge.ok{background:var(--accent-soft);color:var(--accent)}
 .badge.warn{background:var(--c-food-bg);color:var(--c-food)}
 .badge.star{background:var(--c-shop-bg);color:var(--c-shop)}
-.badge.cost{background:var(--field);color:var(--muted);font-weight:500}
-.badge.memo{background:var(--field);color:var(--muted);font-weight:500}
-.card-b{display:none;padding:0 12px 12px 10px;border-top:1px dashed var(--line);margin:0 0 0 0}
-li.open .card-b{display:grid;gap:10px;padding-top:10px}
-.note{font-size:13.5px;color:var(--muted)}
-.links{display:flex;gap:6px;flex-wrap:wrap}
-.chip{display:inline-flex;align-items:center;gap:4px;font-size:13px;text-decoration:none;border:0;border-radius:999px;padding:5px 12px;color:#fff;background:var(--accent);font-family:var(--display);font-weight:700}
-.chip.alt{background:var(--card);color:var(--accent);border:1px solid var(--accent)}
-.field{display:grid;gap:4px}
-.field label{font-size:12px;color:var(--muted);font-family:var(--display);font-weight:700}
-.field textarea,.field input{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--card);font-size:14px}
-.field textarea{min-height:64px;resize:vertical}
-.cost{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
-.cost .twd{font-variant-numeric:tabular-nums;font-size:14px;color:var(--fg);white-space:nowrap;font-family:var(--display)}
-.cost .twd small{display:block;color:var(--muted);font-size:11px;font-weight:400}
-.ag li.transport{--cc:var(--c-transport);--cb:var(--c-transport-bg)}
-.ag li.sight{--cc:var(--c-sight);--cb:var(--card)}
-.ag li.food{--cc:var(--c-food);--cb:var(--card)}
-.ag li.hotel{--cc:var(--c-hotel);--cb:var(--card)}
-.ag li.shop{--cc:var(--c-shop);--cb:var(--card)}
-.ag li.transport .card-h .n{font-size:13.5px;color:var(--muted)}
-
-/* states */
-.cd{display:inline-block;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:1px 10px;font-size:12px;font-family:var(--display);font-weight:700}
-.cd:empty{display:none}
-.dt.today b{box-shadow:0 0 0 2px var(--accent) inset}
-.next{background:var(--accent-soft);color:var(--fg);border-radius:12px;padding:8px 12px;font-size:13.5px;margin-bottom:10px}
-.next b{color:var(--accent);font-family:var(--display);font-weight:700;margin-right:4px}
 .badge.now{background:#f2b76b;color:#3a2a10}
+.badge.m{background:var(--field);color:var(--muted);font-weight:500}
 li.now .card{box-shadow:0 0 0 2px #f2b76b,var(--shadow)}
 li.done .card{opacity:.55}
 li.done .card-h .n{text-decoration:line-through}
-.chip.copy{cursor:pointer}
-.saved{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;background:var(--field);border-radius:10px;padding:8px 10px}
-.saved-t{min-width:0;font-size:13.5px;overflow-wrap:anywhere}
-.sv-cost{font-family:var(--display);font-weight:700}
-.sv-cost span{color:var(--muted);font-weight:500;font-size:12.5px}
-.sv-memo{white-space:pre-wrap;color:var(--fg)}
-.saved-a{display:flex;gap:10px;white-space:nowrap}
+.card-b{display:none;padding:0 12px 12px 10px;border-top:1px dashed var(--line)}
+li.open .card-b{display:grid;gap:10px;padding-top:10px}
+.note{font-size:13.5px;color:var(--muted)}
+.links{display:flex;gap:6px;flex-wrap:wrap}
+.ag li.transport{--cc:var(--c-transport);--cb:var(--c-transport-bg)}
+.ag li.sight{--cc:var(--c-sight)}.ag li.food{--cc:var(--c-food)}.ag li.hotel{--cc:var(--c-hotel)}.ag li.shop{--cc:var(--c-shop)}
+.ag li.transport .card-h .n{font-size:13.5px;color:var(--muted)}
+
+/* edit mode */
+.etools{display:none;grid-template-columns:repeat(5,1fr);gap:4px;padding:6px 10px;background:var(--field);border-top:1px dashed var(--line)}
+body.editing .etools{display:grid}
+.etools button{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:5px 0;font-size:12px;font-family:var(--display);font-weight:700;color:var(--muted)}
+.etools button:disabled{opacity:.35}
+.etools .del{color:var(--danger)}
+.addrow{display:none;margin-top:10px}
+body.editing .addrow{display:block}
+.addrow button{width:100%;border:1px dashed var(--accent);background:none;color:var(--accent);border-radius:12px;padding:10px;font-family:var(--display);font-weight:700}
+.ebar{display:none;background:var(--accent-soft);border-radius:12px;padding:8px 12px;font-size:13px;margin-bottom:10px;color:var(--accent)}
+body.editing .ebar{display:block}
+
+/* memo */
+.memo-v{display:grid;gap:8px;background:var(--field);border-radius:12px;padding:10px 12px}
+.memo-v .row{display:grid;grid-template-columns:22px 1fr;gap:6px;font-size:13.5px;align-items:start}
+.memo-v .row b{font-family:var(--display);font-weight:700}
+.memo-v .row span{color:var(--muted);font-size:12.5px}
+.memo-v .txt{white-space:pre-wrap;overflow-wrap:anywhere}
+.memo-v .lk a{display:block;color:var(--accent);overflow-wrap:anywhere;font-size:13px;text-decoration:none}
+.memo-v .lk a::before{content:"🔗 "}
+.memo-a{display:flex;gap:12px;justify-content:flex-end}
 .lnk{border:0;background:none;color:var(--accent);font-size:13px;padding:0;font-family:var(--display);font-weight:700}
 .lnk.del{color:var(--muted)}
 .addmemo{border:1px dashed var(--line);background:none;border-radius:10px;padding:8px;color:var(--muted);font-size:13.5px;width:100%}
-.editor{display:grid;gap:10px;background:var(--field);border-radius:10px;padding:10px}
-.ed-a{display:flex;gap:8px;justify-content:flex-end}
-.btn{border:0;border-radius:999px;padding:6px 16px;font-family:var(--display);font-weight:700;font-size:13.5px}
-.btn.ok{background:var(--accent);color:#fff}
-.btn.cancel{background:var(--card);color:var(--muted);border:1px solid var(--line)}
-.pager{display:flex;justify-content:space-between;margin-top:14px}
-.pg{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;font-size:13.5px;font-family:var(--display);font-weight:700;color:var(--accent)}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px}
+.photos .ph{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--line);border:0;padding:0;max-width:100%}
+.photos .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.photos .ph .x{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:0;font-size:12px;line-height:1;display:grid;place-items:center}
+.photos .add{aspect-ratio:1;border:1px dashed var(--line);border-radius:10px;display:grid;place-items:center;color:var(--muted);font-size:12px;background:var(--card);cursor:pointer;text-align:center;line-height:1.3}
+.photos .add input{display:none}
+.editor{display:grid;gap:10px;background:var(--field);border-radius:12px;padding:12px}
+.editor h4{margin:0;font-family:var(--display);font-weight:700;font-size:14px}
+.cost{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.cost .twd{font-variant-numeric:tabular-nums;font-size:14px;white-space:nowrap;font-family:var(--display);padding-bottom:8px}
+.cost .twd small{display:block;color:var(--muted);font-size:11px;font-weight:400}
+.linklist{display:grid;gap:6px}
+.linklist .lr{display:grid;grid-template-columns:1fr auto;gap:6px}
+.linklist .lr button{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:0 10px;color:var(--muted)}
+.ed-a{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+@media (max-width:420px){.g3{grid-template-columns:1fr 1fr}}
+
+/* overlay */
+.ovl{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:50;display:none;place-items:center;padding:16px}
+.ovl.on{display:grid}
+.ovl img{max-width:100%;max-height:90vh;border-radius:8px}
+.ovl button{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;border:0;font-size:20px}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40;display:none;align-items:flex-end;justify-content:center}
+.sheet.on{display:flex}
+.sheet .in{background:var(--bg);width:100%;max-width:720px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+.sheet h3{margin:0 0 10px;font-size:17px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);border-radius:999px;padding:8px 16px;font-size:13px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
 
 /* info tab */
 .info .card{border-left:0;padding:14px 16px;margin-bottom:12px;background:var(--card)}
@@ -161,10 +196,8 @@ tr:last-child td{border-bottom:0}
 tr.total td{font-family:var(--display);font-weight:700;font-size:16px;color:var(--accent)}
 .tbtn{font-size:12px;border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:1px 8px;color:var(--accent);text-decoration:none;margin-left:4px}
 .rate{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;font-size:14px}
-.rate input{width:90px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--card);text-align:right;font-variant-numeric:tabular-nums}
-.hint{font-size:12px;color:var(--muted);margin:6px 0 0}
+.rate input{width:90px;text-align:right}
 .shop-add{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:8px}
-.shop-add input{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--card);min-width:0}
 .shop-add button{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:8px 14px;font-family:var(--display);font-weight:700}
 .shop{list-style:none;padding:0;margin:0;display:grid}
 .shop li{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line);font-size:14px}
@@ -172,9 +205,13 @@ tr.total td{font-family:var(--display);font-weight:700;font-size:16px;color:var(
 .shop input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
 .shop li.done span{text-decoration:line-through;color:var(--muted)}
 .shop .del{border:0;background:none;color:var(--muted);font-size:16px;padding:0 4px}
+.shop .from{display:block;font-size:11.5px;color:var(--muted)}
 .empty{color:var(--muted);font-size:13px;padding:6px 0}
 .tips{list-style:none;padding:0;margin:0;display:grid;gap:8px}
 .tips li{display:grid;grid-template-columns:24px 1fr;gap:8px;font-size:14px}
+.bk{display:flex;gap:8px;flex-wrap:wrap}
+.bk label.btn{cursor:pointer}
+.bk input{display:none}
 .foot{margin-top:28px;text-align:center;color:var(--muted);font-size:12px;font-family:var(--display)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -199,10 +236,7 @@ tr.total td{font-family:var(--display);font-weight:700;font-size:16px;color:var(
         <div class="flight"><div><div class="ap">NGO</div><div class="tm">11/28 19:40</div></div><div class="mid">JX839<br>星宇航空</div><div class="r"><div class="ap">TPE</div><div class="tm">22:15 抵達</div></div></div>
       </div>
     </div>
-    <div class="card">
-      <h3>🏨 住宿</h3>
-      <table id="hotels"></table>
-    </div>
+    <div class="card"><h3>🏨 住宿</h3><table id="hotels"></table></div>
     <div class="card">
       <h3>💴 花費</h3>
       <table>
@@ -216,8 +250,20 @@ tr.total td{font-family:var(--display);font-weight:700;font-size:16px;color:var(
     </div>
     <div class="card">
       <h3>🛒 購物清單</h3>
-      <form class="shop-add" id="shopform"><input id="shopin" placeholder="想買的東西，例如：Onitsuka Tiger 1183C431-020" aria-label="新增購物項目"><button type="submit">加入</button></form>
+      <form class="shop-add" id="shopform"><input id="shopin" type="text" placeholder="想買的東西" aria-label="新增購物項目"><button type="submit">加入</button></form>
       <ul class="shop" id="shop"></ul>
+      <p class="hint">各卡片備註裡「🛒 要買的」會自動列在下面，方便一次看完。</p>
+      <ul class="shop" id="shop-auto"></ul>
+    </div>
+    <div class="card">
+      <h3>💾 備份與還原</h3>
+      <p class="hint" style="margin:0 0 8px">行程修改、備註、照片、記帳都只存在這台裝置。出發前和旅途中記得備份一份，換手機或清快取才不會不見。</p>
+      <div class="bk">
+        <button class="btn ok" id="bk-dl">⬇ 下載備份檔</button>
+        <label class="btn cancel">⬆ 還原備份<input type="file" id="bk-up" accept="application/json,.json"></label>
+        <button class="btn danger sm" id="bk-reset">重設行程為原始版本</button>
+      </div>
+      <p class="hint" id="bk-size"></p>
     </div>
     <div class="card">
       <h3>🔗 常用網站</h3>
@@ -228,14 +274,17 @@ tr.total td{font-family:var(--display);font-weight:700;font-size:16px;color:var(
         <li><span>📝</span><span>請假：12.5 小時特休時數、1 天特休、4 天事假（特休剩 4.5 小時）</span></li>
       </ul>
     </div>
-    <p class="hint">備註、花費、購物清單只存在這台裝置的瀏覽器裡，換裝置不會同步。</p>
   </section>
-
   <p class="foot">kaku_trip ・ 營業時間與班次出發前請再確認</p>
 </div>
 
+<div class="ovl" id="ovl"><button id="ovl-x" aria-label="關閉">✕</button><img id="ovl-img" alt=""></div>
+<div class="sheet" id="sheet"><div class="in" id="sheet-in"></div></div>
+<div class="toast" id="toast"></div>
+
 <script>
-const DAYS=[
+/* ---------- default itinerary ---------- */
+const DEFAULT_DAYS=[
 {n:1,date:"11/21",wd:"六",title:"抵達名古屋・榮夜景",hotel:"納屋橋吳竹高級飯店",trans:"飛機、名鐵特急列車、電車、徒步",sights:"綠洲21、久屋大通公園、中日大樓",food:"Lawson",
  items:[
  {t:"18:30-19:00",c:"transport",i:"✈️",k:"交通",n:"抵達中部國際機場",w:"https://www.centrair.jp/"},
@@ -368,145 +417,255 @@ const DAYS=[
 ];
 const HOTELS=[["11/21–22","納屋橋吳竹高級飯店","納屋橋吳竹高級飯店","",9384],["11/23","Nagoya Beads Hotel","Nagoya Beads Hotel","",1940],["11/24","東橫INN 伊勢市站","東横INN 伊勢市駅","https://www.toyoko-inn.com/",1537],["11/25","鳥羽石鏡第一飯店 神俱良","石鏡第一ホテル神倶良","",4257],["11/26–27","東橫INN 名古屋名站南","東横INN名古屋名駅南","https://www.toyoko-inn.com/",2499]];
 const FIXED=19547+19617;
+const CATS={transport:["交通","🚆"],sight:["景點","🗼"],food:["美食","🍱"],hotel:["飯店","🏨"],shop:["購物","🛍️"]};
+const KINDS={transport:["交通","航班"],sight:["景點","拍攝"],food:["早餐","午餐","晚餐","點心","登記","策略"],hotel:["飯店"],shop:["逛街","行李","寄物","補給","景點"]};
 
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const map=q=>"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q);
-const store={get(k,f){try{const v=localStorage.getItem(k);return v==null?f:JSON.parse(v)}catch(e){return f}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+/* ---------- helpers / storage ---------- */
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mapUrl=q=>"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q);
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const store={get(k,f){try{const v=localStorage.getItem(k);return v==null?f:JSON.parse(v)}catch(e){return f}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){toast('儲存失敗：空間不足');return false}}};
 const nt=n=>'NT$'+Math.round(n).toLocaleString('en-US');
-let notes=store.get('kaku-notes',{}),costs=store.get('kaku-costs',{}),rate=store.get('kaku-rate',0.20),shop=store.get('kaku-shop',[]),openSet=store.get('kaku-open',{});
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const mins=s=>{const[h,m]=s.split(':').map(Number);return h*60+m};
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),1800)}
 
-const strip=document.getElementById('strip'),main=document.getElementById('days');
-DAYS.forEach(d=>{
-  const dn=d.date.split('/')[1];
-  strip.insertAdjacentHTML('beforeend',`<button class="dt" role="tab" id="tab-${d.n}" aria-selected="false"><small>${d.wd}</small><b>${dn}</b><i>Day ${d.n}</i></button>`);
-  main.insertAdjacentHTML('beforeend',`
-  <section class="day" id="day-${d.n}" role="tabpanel">
-    <div class="day-h"><h2>Day ${d.n}・${esc(d.title)}</h2><span class="d">${d.date}（${d.wd}）</span>${d.tag?`<span class="tag">${esc(d.tag)}</span>`:''}</div>
-    <div class="ov">
-      <div><span>🏨</span><span class="l">住宿</span><span class="v">${esc(d.hotel)}</span></div>
-      <div><span>🚆</span><span class="l">交通</span><span class="v">${esc(d.trans)}</span></div>
-      <div><span>🗼</span><span class="l">景點</span><span class="v">${esc(d.sights)}</span></div>
-      <div><span>🥢</span><span class="l">美食</span><span class="v">${esc(d.food)}</span></div>
-      ${d.wear?`<div><span>👕</span><span class="l">穿著</span><span class="v">${esc(d.wear)}</span></div>`:''}
-    </div>
-    <div class="next" id="nx-${d.n}" hidden></div>
-    <ol class="ag">${d.items.map((it,i)=>{const id=d.n+'-'+i;const[a,b]=it.t.split('-');
-      const prev=[...d.items.slice(0,i)].reverse().find(x=>x.m),nxt=d.items.slice(i+1).find(x=>x.m);
-      const dir=it.c==='transport'&&prev&&nxt?`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(prev.m)}&destination=${encodeURIComponent(nxt.m)}&travelmode=transit`:'';
-      return`<li class="${it.c}" id="li-${id}">
-        <div class="time">${a}<em>${b}</em></div>
-        <div class="card">
-          <button class="card-h" data-id="${id}" aria-expanded="false">
-            <span class="ic">${it.i}</span>
-            <span><span class="k">${esc(it.k)}</span><span class="n">${esc(it.n)}</span><span class="mini">${it.b?`<span class="badge ${it.b[0]}">${esc(it.b[1])}</span>`:''}<span class="badge now" hidden>現在</span><span class="badge cost" hidden></span><span class="badge memo" hidden>✎ 有備註</span></span></span>
-            <span class="arr">▼</span>
-          </button>
-          <div class="card-b">
-            ${it.note?`<div class="note">${esc(it.note)}</div>`:''}
-            <div class="links">${it.m?`<a class="chip" href="${map(it.m)}" target="_blank" rel="noopener">📍 Google Maps</a>`:''}${dir?`<a class="chip" href="${dir}" target="_blank" rel="noopener">🧭 路線（${esc(prev.m.slice(0,6))} → ${esc(nxt.m.slice(0,6))}）</a>`:''}${it.w?`<a class="chip alt" href="${it.w}" target="_blank" rel="noopener">🔗 官網</a>`:''}${it.m?`<button class="chip alt copy" data-txt="${esc(it.m)}">📋 複製店名</button>`:''}<button class="chip alt done-btn" data-id="${id}">✓ 標記完成</button></div>
-            <div class="saved" id="sv-${id}" hidden><div class="saved-t"></div><div class="saved-a"><button class="lnk edit" data-id="${id}">編輯</button><button class="lnk del" data-id="${id}">刪除</button></div></div>
-            <button class="addmemo" id="ad-${id}" data-id="${id}">＋ 新增備註／花費</button>
-            <div class="editor" id="ed-${id}" hidden>
-              <div class="field cost"><div><label for="c-${id}">花費（日圓）</label><input id="c-${id}" type="number" inputmode="numeric" min="0" placeholder="例如 1800"></div><div class="twd" id="tw-${id}">—<small>台幣</small></div></div>
-              <div class="field"><label for="m-${id}">備註・要買的東西</label><textarea id="m-${id}" placeholder="寫下想買的、點了什麼、評價…"></textarea></div>
-              <div class="ed-a"><button class="btn ok" data-id="${id}">確定</button><button class="btn cancel" data-id="${id}">取消</button></div>
-            </div>
-          </div>
+/* IndexedDB for photos */
+const idb={db:null,open(){return new Promise((res,rej)=>{if(this.db)return res(this.db);const r=indexedDB.open('kaku-trip',1);r.onupgradeneeded=()=>r.result.createObjectStore('photos');r.onsuccess=()=>{this.db=r.result;res(this.db)};r.onerror=()=>rej(r.error)})},
+ async put(k,v){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('photos','readwrite');t.objectStore('photos').put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error)})},
+ async get(k){const db=await this.open();return new Promise((res,rej)=>{const r=db.transaction('photos').objectStore('photos').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
+ async del(k){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('photos','readwrite');t.objectStore('photos').delete(k);t.oncomplete=res;t.onerror=()=>rej(t.error)})},
+ async all(){const db=await this.open();return new Promise((res,rej)=>{const out={};const r=db.transaction('photos').objectStore('photos').openCursor();r.onsuccess=()=>{const c=r.result;if(c){out[c.key]=c.value;c.continue()}else res(out)};r.onerror=()=>rej(r.error)})}};
+function shrink(file,max=1280){return new Promise(res=>{const img=new Image();img.onload=()=>{const s=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext('2d').drawImage(img,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.82));URL.revokeObjectURL(img.src)};img.src=URL.createObjectURL(file)})}
+
+/* ---------- state ---------- */
+let DAYS=store.get('kaku-plan',null);
+if(!DAYS){DAYS=JSON.parse(JSON.stringify(DEFAULT_DAYS));DAYS.forEach(d=>d.items.forEach((it,i)=>it.id=d.n+'-'+i))}
+DAYS.forEach(d=>d.items.forEach(it=>{if(!it.id)it.id=uid()}));
+const savePlan=()=>store.set('kaku-plan',DAYS);
+let memos=store.get('kaku-memos',{});
+/* migrate old notes/costs */
+(()=>{const on=store.get('kaku-notes',null),oc=store.get('kaku-costs',null);if(on||oc){Object.keys(on||{}).forEach(k=>{memos[k]=memos[k]||{};memos[k].note=on[k]});Object.keys(oc||{}).forEach(k=>{memos[k]=memos[k]||{};memos[k].cost=oc[k]});store.set('kaku-memos',memos);try{localStorage.removeItem('kaku-notes');localStorage.removeItem('kaku-costs')}catch(e){}}})();
+let rate=store.get('kaku-rate',0.20),shop=store.get('kaku-shop',null),openSet=store.get('kaku-open',{}),done=store.get('kaku-done',{}),editing=false,cur=1;
+if(shop===null)shop=[{t:"Onitsuka Tiger DELEGATION EX 淺灰虎爪紋 1183C431-020 ￥18,700",d:false},{t:"Onitsuka Tiger DELEGATION EX 軍綠白虎爪紋 1183C429-202",d:false}];
+
+/* ---------- render ---------- */
+const strip=$('#strip'),main=$('#days');
+function renderAll(){
+  strip.innerHTML='';main.innerHTML='';
+  DAYS.forEach(d=>{
+    strip.insertAdjacentHTML('beforeend',`<button class="dt" role="tab" id="tab-${d.n}" aria-selected="false"><small>${d.wd}</small><b>${d.date.split('/')[1]}</b><i>Day ${d.n}</i></button>`);
+    main.insertAdjacentHTML('beforeend',`
+    <section class="day" id="day-${d.n}" role="tabpanel">
+      <div class="day-h"><h2>Day ${d.n}・${esc(d.title)}</h2><span class="d">${d.date}（${d.wd}）</span>${d.tag?`<span class="tag">${esc(d.tag)}</span>`:''}<span class="sp"></span><button class="edit-tog" data-d="${d.n}" aria-pressed="${editing}">✎ 編輯行程</button></div>
+      <div class="ebar">編輯模式：用卡片下方的按鈕調整順序、搬到別天、修改或刪除；最下面可以新增。改完按右上「完成」。</div>
+      <div class="ov">
+        <div><span>🏨</span><span class="l">住宿</span><span class="v">${esc(d.hotel)}</span></div>
+        <div><span>🚆</span><span class="l">交通</span><span class="v">${esc(d.trans)}</span></div>
+        <div><span>🗼</span><span class="l">景點</span><span class="v">${esc(d.sights)}</span></div>
+        <div><span>🥢</span><span class="l">美食</span><span class="v">${esc(d.food)}</span></div>
+        ${d.wear?`<div><span>👕</span><span class="l">穿著</span><span class="v">${esc(d.wear)}</span></div>`:''}
+      </div>
+      <div class="next" id="nx-${d.n}" hidden></div>
+      <ol class="ag" id="ag-${d.n}"></ol>
+      <div class="addrow"><button data-d="${d.n}" class="add-item">＋ 新增行程到 Day ${d.n}</button></div>
+      <div class="sum"><span>今日記帳</span><span><b id="ds-${d.n}">¥0 ≈ NT$0</b></span></div>
+      <div class="pager">${d.n>1?`<button class="pg" data-go="${d.n-1}">← Day ${d.n-1}</button>`:'<span></span>'}${d.n<DAYS.length?`<button class="pg" data-go="${d.n+1}">Day ${d.n+1} →</button>`:`<button class="pg" data-go="info">總覽 →</button>`}</div>
+    </section>`);
+    renderDay(d);
+  });
+  strip.insertAdjacentHTML('beforeend',`<button class="dt" role="tab" id="tab-info" aria-selected="false"><small>總覽</small><b>✈︎</b><i>航班住宿</i></button>`);
+  $$('.dt').forEach(t=>t.onclick=()=>show(t.id==='tab-info'?'info':+t.id.replace('tab-','')));
+  $$('.pg').forEach(b=>b.onclick=()=>show(b.dataset.go==='info'?'info':+b.dataset.go));
+  $$('.edit-tog').forEach(b=>b.onclick=()=>setEditing(!editing));
+  $$('.add-item').forEach(b=>b.onclick=()=>itemForm(+b.dataset.d,null));
+  refresh();tick();
+}
+function renderDay(d){
+  const ol=$('#ag-'+d.n);
+  ol.innerHTML=d.items.map((it,i)=>{const[a,b]=it.t.split('-');
+    const prev=[...d.items.slice(0,i)].reverse().find(x=>x.m),nxt=d.items.slice(i+1).find(x=>x.m);
+    const dir=it.c==='transport'&&prev&&nxt?`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(prev.m)}&destination=${encodeURIComponent(nxt.m)}&travelmode=transit`:'';
+    return`<li class="${it.c}" id="li-${it.id}">
+      <div class="time">${a}<em>${b}</em></div>
+      <div class="card">
+        <button class="card-h" data-id="${it.id}" aria-expanded="false">
+          <span class="ic">${it.i}</span>
+          <span><span class="k">${esc(it.k)}</span><span class="n">${esc(it.n)}</span><span class="mini">${it.b?`<span class="badge ${it.b[0]}">${esc(it.b[1])}</span>`:''}<span class="badge now" hidden>現在</span><span class="mb"></span></span></span>
+          <span class="arr">▼</span>
+        </button>
+        <div class="etools"><button class="up" ${i===0?'disabled':''}>↑ 上移</button><button class="dn" ${i===d.items.length-1?'disabled':''}>↓ 下移</button><button class="mv">⇄ 換天</button><button class="ed">✎ 修改</button><button class="del">🗑 刪除</button></div>
+        <div class="card-b">
+          ${it.note?`<div class="note">${esc(it.note)}</div>`:''}
+          <div class="links">${it.m?`<a class="chip" href="${mapUrl(it.m)}" target="_blank" rel="noopener">📍 Google Maps</a>`:''}${dir?`<a class="chip" href="${dir}" target="_blank" rel="noopener">🧭 路線</a>`:''}${it.w?`<a class="chip alt" href="${it.w}" target="_blank" rel="noopener">🔗 官網</a>`:''}${it.m?`<button class="chip alt copy" data-txt="${esc(it.m)}">📋 複製店名</button>`:''}<button class="chip alt done-btn">✓ 標記完成</button></div>
+          <div class="memo-slot" id="ms-${it.id}"></div>
         </div>
-      </li>`}).join('')}</ol>
-    <div class="sum"><span>今日記帳</span><span><b id="ds-${d.n}">¥0 ≈ NT$0</b></span></div>
-    <div class="pager">${d.n>1?`<button class="pg" data-go="${d.n-1}">← Day ${d.n-1}</button>`:'<span></span>'}${d.n<8?`<button class="pg" data-go="${d.n+1}">Day ${d.n+1} →</button>`:`<button class="pg" data-go="info">總覽 →</button>`}</div>
-  </section>`);
-});
-strip.insertAdjacentHTML('beforeend',`<button class="dt" role="tab" id="tab-info" aria-selected="false"><small>總覽</small><b>✈︎</b><i>航班住宿</i></button>`);
+      </div>
+    </li>`}).join('');
+  d.items.forEach((it,i)=>{
+    const li=$('#li-'+it.id),h=$('.card-h',li);
+    const setOpen=o=>{li.classList.toggle('open',o);h.setAttribute('aria-expanded',String(o));if(o)openSet[it.id]=1;else delete openSet[it.id];store.set('kaku-open',openSet)};
+    h.onclick=()=>setOpen(!li.classList.contains('open'));if(openSet[it.id])setOpen(true);
+    $('.done-btn',li).onclick=()=>{done[it.id]=!done[it.id];if(!done[it.id])delete done[it.id];store.set('kaku-done',done);refresh()};
+    const cp=$('.copy',li);if(cp)cp.onclick=()=>copyText(cp.dataset.txt,cp,'📋 複製店名');
+    $('.up',li).onclick=()=>{[d.items[i-1],d.items[i]]=[d.items[i],d.items[i-1]];savePlan();renderDay(d);refresh()};
+    $('.dn',li).onclick=()=>{[d.items[i+1],d.items[i]]=[d.items[i],d.items[i+1]];savePlan();renderDay(d);refresh()};
+    $('.ed',li).onclick=()=>itemForm(d.n,it);
+    $('.mv',li).onclick=()=>moveForm(d,it);
+    $('.del',li).onclick=()=>confirmSheet(`刪除「${it.n}」？`,'備註和照片也會一起刪掉。',async()=>{await deleteMemo(it.id);d.items.splice(i,1);savePlan();renderDay(d);refresh();toast('已刪除')});
+    renderMemo(it.id);
+  });
+}
+function copyText(t,btn,label){const ok=()=>{btn.textContent='✓ 已複製';setTimeout(()=>btn.textContent=label,1500)};(navigator.clipboard?.writeText(t)||Promise.reject()).then(ok).catch(()=>{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');ok()}catch(e){}ta.remove()})}
+function setEditing(on){editing=on;document.body.classList.toggle('editing',on);$$('.edit-tog').forEach(b=>{b.setAttribute('aria-pressed',String(on));b.textContent=on?'✓ 完成':'✎ 編輯行程'})}
 
-/* wire cards */
-let done=store.get('kaku-done',{});
-const $=(s,r=document)=>r.querySelector(s);
-main.querySelectorAll('.card-h').forEach(h=>{
-  const id=h.dataset.id,li=$('#li-'+id),ci=$('#c-'+id),mi=$('#m-'+id),ed=$('#ed-'+id),ad=$('#ad-'+id),tw=$('#tw-'+id);
-  const setOpen=o=>{li.classList.toggle('open',o);h.setAttribute('aria-expanded',String(o));if(o)openSet[id]=1;else delete openSet[id];store.set('kaku-open',openSet)};
-  h.onclick=()=>setOpen(!li.classList.contains('open'));
-  if(openSet[id])setOpen(true);
-  const openEditor=()=>{ci.value=costs[id]??'';mi.value=notes[id]||'';preview();ed.hidden=false;ad.hidden=true;$('#sv-'+id).hidden=true;(costs[id]==null?ci:mi).focus()};
-  const closeEditor=()=>{ed.hidden=true;refresh()};
-  const preview=()=>{const v=parseFloat(ci.value);tw.innerHTML=(isNaN(v)?'—':'≈ '+nt(v*rate))+'<small>台幣</small>'};
-  ci.oninput=preview;
-  ad.onclick=openEditor;
-  $('.edit',li).onclick=openEditor;
-  $('.del',li).onclick=()=>{delete costs[id];delete notes[id];store.set('kaku-costs',costs);store.set('kaku-notes',notes);refresh()};
-  $('.ok',li).onclick=()=>{const v=parseFloat(ci.value);if(ci.value!==''&&!isNaN(v)&&v>=0)costs[id]=v;else delete costs[id];
-    if(mi.value.trim())notes[id]=mi.value.trim();else delete notes[id];store.set('kaku-costs',costs);store.set('kaku-notes',notes);closeEditor()};
-  $('.cancel',li).onclick=closeEditor;
-  $('.done-btn',li).onclick=()=>{done[id]=!done[id];if(!done[id])delete done[id];store.set('kaku-done',done);refresh()};
-  const cp=$('.copy',li);if(cp)cp.onclick=()=>{const t=cp.dataset.txt;const ok=()=>{cp.textContent='✓ 已複製';setTimeout(()=>cp.textContent='📋 複製店名',1500)};
-    (navigator.clipboard?.writeText(t)||Promise.reject()).then(ok).catch(()=>{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');ok()}catch(e){}ta.remove()})};
-});
-main.querySelectorAll('.pg').forEach(b=>b.onclick=()=>show(b.dataset.go==='info'?'info':+b.dataset.go));
+/* ---------- memo ---------- */
+const memoEmpty=m=>!m||!(m.cost!=null||m.buy||m.shoot||m.note||(m.links&&m.links.length)||(m.photos&&m.photos.length));
+async function renderMemo(id){
+  const slot=$('#ms-'+id);if(!slot)return;const m=memos[id];
+  if(memoEmpty(m)){slot.innerHTML=`<button class="addmemo">＋ 新增備註／花費／照片</button>`;$('.addmemo',slot).onclick=()=>memoForm(id);return}
+  const rows=[];
+  if(m.cost!=null)rows.push(`<div class="row"><span>💴</span><div><b>¥${m.cost.toLocaleString('en-US')}</b> <span>≈ ${nt(m.cost*rate)}</span></div></div>`);
+  if(m.buy)rows.push(`<div class="row"><span>🛒</span><div class="txt">${esc(m.buy)}</div></div>`);
+  if(m.shoot)rows.push(`<div class="row"><span>📷</span><div class="txt">${esc(m.shoot)}</div></div>`);
+  if(m.note)rows.push(`<div class="row"><span>📝</span><div class="txt">${esc(m.note)}</div></div>`);
+  if(m.links&&m.links.length)rows.push(`<div class="row"><span>🔗</span><div class="lk">${m.links.map(l=>`<a href="${esc(l)}" target="_blank" rel="noopener">${esc(l.replace(/^https?:\/\//,'').slice(0,60))}</a>`).join('')}</div></div>`);
+  slot.innerHTML=`<div class="memo-v">${rows.join('')}<div class="photos" id="pv-${id}"></div><div class="memo-a"><button class="lnk e">編輯</button><button class="lnk del">刪除備註</button></div></div>`;
+  $('.e',slot).onclick=()=>memoForm(id);
+  $('.lnk.del',slot).onclick=()=>confirmSheet('刪除這張卡片的備註？','花費、文字、網址和照片都會清掉。',async()=>{await deleteMemo(id);refresh();renderMemo(id)});
+  const pv=$('#pv-'+id);
+  if(m.photos&&m.photos.length){for(const pid of m.photos){const src=await idb.get(pid).catch(()=>null);if(src)pv.insertAdjacentHTML('beforeend',`<button class="ph" data-src="${pid}"><img src="${src}" alt="照片"></button>`)}
+    $$('.ph',pv).forEach(b=>b.onclick=()=>{$('#ovl-img').src=$('img',b).src;$('#ovl').classList.add('on')})}else pv.remove();
+}
+async function deleteMemo(id){const m=memos[id];if(m&&m.photos)for(const p of m.photos)await idb.del(p).catch(()=>{});delete memos[id];store.set('kaku-memos',memos)}
+function memoForm(id){
+  const m=JSON.parse(JSON.stringify(memos[id]||{}));m.links=m.links||[];m.photos=m.photos||[];const newPhotos=[],delPhotos=[];
+  const it=DAYS.flatMap(d=>d.items).find(x=>x.id===id);
+  openSheet(`<h3>${it.i} ${esc(it.n)}</h3>
+    <div class="editor">
+      <div class="cost"><div class="field"><label>💴 花費（日圓）</label><input type="number" id="f-cost" inputmode="numeric" min="0" placeholder="例如 1800" value="${m.cost??''}"></div><div class="twd" id="f-twd">—<small>台幣</small></div></div>
+      <div class="field"><label>🛒 要買的東西</label><textarea id="f-buy" placeholder="一行一項：赤福 8 入、御守…">${esc(m.buy)}</textarea></div>
+      <div class="field"><label>📷 要拍的內容</label><textarea id="f-shoot" placeholder="取景角度、Shorts 要拍的畫面、幾點光線最好…">${esc(m.shoot)}</textarea></div>
+      <div class="field"><label>📝 記錄・心得</label><textarea id="f-note" placeholder="點了什麼、評價、下次要注意的…">${esc(m.note)}</textarea></div>
+      <div class="field"><label>🔗 網址（Tabelog、IG、官網…）</label><div class="linklist" id="f-links"></div><button class="btn cancel sm" id="f-addlink" type="button">＋ 加一個網址</button></div>
+      <div class="field"><label>🖼 照片（菜單、想買的商品、參考照）</label><div class="photos" id="f-photos"></div></div>
+      <div class="ed-a"><button class="btn cancel" id="f-cancel">取消</button><button class="btn ok" id="f-ok">確定</button></div>
+    </div>`);
+  const ci=$('#f-cost'),tw=$('#f-twd');const pv=()=>{const v=parseFloat(ci.value);tw.innerHTML=(isNaN(v)?'—':'≈ '+nt(v*rate))+'<small>台幣</small>'};ci.oninput=pv;pv();
+  const ll=$('#f-links');const drawLinks=()=>{ll.innerHTML=m.links.map((l,i)=>`<div class="lr"><input type="url" value="${esc(l)}" data-i="${i}" placeholder="https://"><button data-i="${i}" type="button">✕</button></div>`).join('');$$('input',ll).forEach(x=>x.oninput=()=>m.links[+x.dataset.i]=x.value.trim());$$('button',ll).forEach(x=>x.onclick=()=>{m.links.splice(+x.dataset.i,1);drawLinks()})};drawLinks();
+  $('#f-addlink').onclick=()=>{m.links.push('');drawLinks();$$('input',ll).pop().focus()};
+  const pp=$('#f-photos');
+  const drawPhotos=async()=>{pp.innerHTML='';for(const pid of m.photos){const src=await idb.get(pid).catch(()=>null);if(!src)continue;pp.insertAdjacentHTML('beforeend',`<div class="ph"><img src="${src}" alt=""><button class="x" data-p="${pid}" type="button">✕</button></div>`)}
+    pp.insertAdjacentHTML('beforeend',`<label class="add">＋ 加照片<br><small>可多選</small><input type="file" accept="image/*" multiple></label>`);
+    $$('.x',pp).forEach(b=>b.onclick=()=>{const p=b.dataset.p;m.photos=m.photos.filter(x=>x!==p);delPhotos.push(p);drawPhotos()});
+    $('input[type=file]',pp).onchange=async e=>{for(const f of e.target.files){const data=await shrink(f);const pid='p'+uid();await idb.put(pid,data).catch(()=>toast('照片儲存失敗'));m.photos.push(pid);newPhotos.push(pid)}drawPhotos()}};
+  drawPhotos();
+  $('#f-cancel').onclick=async()=>{for(const p of newPhotos)await idb.del(p).catch(()=>{});closeSheet()};
+  $('#f-ok').onclick=async()=>{const v=parseFloat(ci.value);m.cost=(ci.value!==''&&!isNaN(v)&&v>=0)?v:null;if(m.cost==null)delete m.cost;
+    m.buy=$('#f-buy').value.trim();m.shoot=$('#f-shoot').value.trim();m.note=$('#f-note').value.trim();m.links=m.links.map(l=>l.trim()).filter(Boolean).map(l=>/^https?:\/\//.test(l)?l:'https://'+l);
+    ['buy','shoot','note'].forEach(k=>{if(!m[k])delete m[k]});if(!m.links.length)delete m.links;if(!m.photos.length)delete m.photos;
+    for(const p of delPhotos)await idb.del(p).catch(()=>{});
+    if(memoEmpty(m))delete memos[id];else memos[id]=m;store.set('kaku-memos',memos);closeSheet();refresh();renderMemo(id);toast('已儲存')};
+}
 
+/* ---------- item add / edit / move ---------- */
+function itemForm(dn,it){
+  const d=DAYS.find(x=>x.n===dn),isNew=!it;it=it||{t:'',c:'sight',i:'🗼',k:'景點',n:''};
+  const[a='',b='']=it.t.split('-');
+  openSheet(`<h3>${isNew?'新增行程':'修改行程'}　<span class="d" style="font-size:13px;color:var(--muted)">Day ${dn}</span></h3>
+    <div class="editor">
+      <div class="g2"><div class="field"><label>開始</label><input type="time" id="i-a" value="${a}"></div><div class="field"><label>結束</label><input type="time" id="i-b" value="${b}"></div></div>
+      <div class="g3"><div class="field"><label>類別</label><select id="i-c">${Object.entries(CATS).map(([k,[l]])=>`<option value="${k}" ${it.c===k?'selected':''}>${l}</option>`).join('')}</select></div>
+        <div class="field"><label>標籤文字</label><input type="text" id="i-k" list="kinds" value="${esc(it.k)}"><datalist id="kinds"></datalist></div>
+        <div class="field"><label>Emoji</label><input type="text" id="i-i" value="${esc(it.i)}" maxlength="4"></div></div>
+      <div class="field"><label>名稱</label><input type="text" id="i-n" value="${esc(it.n)}" placeholder="店名、景點或要做的事"></div>
+      <div class="field"><label>補充說明（選填）</label><textarea id="i-note">${esc(it.note||'')}</textarea></div>
+      <div class="g2"><div class="field"><label>Google Maps 搜尋字（選填）</label><input type="text" id="i-m" value="${esc(it.m||'')}" placeholder="日文店名最準"></div><div class="field"><label>官網（選填）</label><input type="url" id="i-w" value="${esc(it.w||'')}" placeholder="https://"></div></div>
+      <div class="g2"><div class="field"><label>提醒標籤（選填）</label><select id="i-bk"><option value="">無</option><option value="ok" ${it.b&&it.b[0]==='ok'?'selected':''}>綠：已預約</option><option value="warn" ${it.b&&it.b[0]==='warn'?'selected':''}>橘：要注意</option><option value="star" ${it.b&&it.b[0]==='star'?'selected':''}>黃：重點</option></select></div><div class="field"><label>標籤內容</label><input type="text" id="i-bt" value="${esc(it.b?it.b[1]:'')}" placeholder="例如：預約完成"></div></div>
+      <div class="ed-a"><button class="btn cancel" id="i-cancel">取消</button><button class="btn ok" id="i-ok">確定</button></div>
+    </div>`);
+  const sel=$('#i-c'),ki=$('#i-k'),ii=$('#i-i'),dl=$('#kinds');
+  const fillKinds=()=>{dl.innerHTML=(KINDS[sel.value]||[]).map(k=>`<option value="${k}">`).join('')};fillKinds();
+  sel.onchange=()=>{const[l,e]=CATS[sel.value];ki.value=KINDS[sel.value][0];ii.value=e;fillKinds()};
+  $('#i-cancel').onclick=closeSheet;
+  $('#i-ok').onclick=()=>{const A=$('#i-a').value,B=$('#i-b').value,n=$('#i-n').value.trim();if(!A||!B||!n){toast('時間和名稱要填');return}
+    const o={id:it.id||uid(),t:A+'-'+B,c:sel.value,i:ii.value.trim()||CATS[sel.value][1],k:ki.value.trim()||CATS[sel.value][0],n};
+    const note=$('#i-note').value.trim(),m=$('#i-m').value.trim(),w=$('#i-w').value.trim(),bk=$('#i-bk').value,bt=$('#i-bt').value.trim();
+    if(note)o.note=note;if(m)o.m=m;if(w)o.w=/^https?:\/\//.test(w)?w:'https://'+w;if(bk&&bt)o.b=[bk,bt];
+    if(isNew){d.items.push(o)}else{const idx=d.items.findIndex(x=>x.id===it.id);d.items[idx]=o}
+    d.items.sort((x,y)=>mins(x.t.split('-')[0])-mins(y.t.split('-')[0]));
+    savePlan();renderDay(d);refresh();closeSheet();toast(isNew?'已新增（依時間排入）':'已更新');
+    const li=$('#li-'+o.id);li&&li.scrollIntoView({behavior:'smooth',block:'center'})};
+}
+function moveForm(d,it){
+  openSheet(`<h3>把「${esc(it.n)}」搬到哪一天？</h3><div class="editor"><div class="field"><label>目標日期</label><select id="mv-d">${DAYS.map(x=>`<option value="${x.n}" ${x.n===d.n?'disabled':''}>Day ${x.n}・${x.date}（${x.wd}）${esc(x.title)}</option>`).join('')}</select></div><p class="hint">搬過去後會依開始時間自動排入，備註和照片一起帶走。</p><div class="ed-a"><button class="btn cancel" id="mv-c">取消</button><button class="btn ok" id="mv-ok">搬移</button></div></div>`);
+  $('#mv-d').value=String(d.n===DAYS.length?1:d.n+1);
+  $('#mv-c').onclick=closeSheet;
+  $('#mv-ok').onclick=()=>{const tn=+$('#mv-d').value,td=DAYS.find(x=>x.n===tn);d.items=d.items.filter(x=>x.id!==it.id);td.items.push(it);td.items.sort((x,y)=>mins(x.t.split('-')[0])-mins(y.t.split('-')[0]));savePlan();renderDay(d);renderDay(td);refresh();closeSheet();show(tn);toast(`已搬到 Day ${tn}`)};
+}
+
+/* ---------- sheet / overlay ---------- */
+function openSheet(html){$('#sheet-in').innerHTML=html;$('#sheet').classList.add('on');document.body.style.overflow='hidden'}
+function closeSheet(){$('#sheet').classList.remove('on');$('#sheet-in').innerHTML='';document.body.style.overflow=''}
+$('#sheet').onclick=e=>{if(e.target.id==='sheet')closeSheet()};
+function confirmSheet(title,sub,fn){openSheet(`<h3>${esc(title)}</h3><p class="hint" style="margin:0 0 12px">${esc(sub)}</p><div class="ed-a"><button class="btn cancel" id="c-no">取消</button><button class="btn ok" id="c-yes" style="background:var(--danger)">確定</button></div>`);$('#c-no').onclick=closeSheet;$('#c-yes').onclick=async()=>{closeSheet();await fn()}}
+$('#ovl-x').onclick=()=>$('#ovl').classList.remove('on');$('#ovl').onclick=e=>{if(e.target.id==='ovl')$('#ovl').classList.remove('on')};
+
+/* ---------- refresh totals / badges ---------- */
 function refresh(){
   let totalTwd=0;
-  DAYS.forEach(d=>{let y=0,dn=0;d.items.forEach((it,i)=>{const id=d.n+'-'+i,v=costs[id],m=notes[id],li=$('#li-'+id);
-    const cb=$('.badge.cost',li),mb=$('.badge.memo',li),sv=$('#sv-'+id),ad=$('#ad-'+id);
-    if(v!=null){y+=v;cb.hidden=false;cb.textContent='¥'+v.toLocaleString('en-US')+' ≈ '+nt(v*rate)}else cb.hidden=true;
-    mb.hidden=!m;
-    const has=v!=null||m;sv.hidden=!has;ad.hidden=has;
-    if(has)$('.saved-t',sv).innerHTML=(v!=null?`<div class="sv-cost">💴 ¥${v.toLocaleString('en-US')} <span>≈ ${nt(v*rate)}</span></div>`:'')+(m?`<div class="sv-memo">${esc(m)}</div>`:'');
-    li.classList.toggle('done',!!done[id]);$('.done-btn',li).textContent=done[id]?'↩ 取消完成':'✓ 標記完成';if(done[id])dn++});
+  DAYS.forEach(d=>{let y=0,dn=0;d.items.forEach(it=>{const m=memos[it.id]||{},li=$('#li-'+it.id);if(!li)return;
+    const b=[];if(m.cost!=null){y+=m.cost;b.push(`💴 ¥${m.cost.toLocaleString('en-US')} ≈ ${nt(m.cost*rate)}`)}if(m.buy)b.push('🛒');if(m.shoot)b.push('📷');if(m.note)b.push('📝');if(m.links&&m.links.length)b.push('🔗');if(m.photos&&m.photos.length)b.push(`🖼 ${m.photos.length}`);
+    $('.mb',li).innerHTML=b.map(x=>`<span class="badge m">${x}</span>`).join('');
+    li.classList.toggle('done',!!done[it.id]);$('.done-btn',li).textContent=done[it.id]?'↩ 取消完成':'✓ 標記完成';if(done[it.id])dn++});
     $('#ds-'+d.n).textContent='¥'+y.toLocaleString('en-US')+' ≈ '+nt(y*rate);totalTwd+=y*rate;
     $('#tab-'+d.n+' i').textContent=dn?`${dn}/${d.items.length} ✓`:`Day ${d.n}`});
   $('#spent').textContent=nt(totalTwd);$('#grand').textContent=nt(FIXED+totalTwd);
+  renderShop();
 }
+const rateIn=$('#rate');rateIn.value=rate;rateIn.oninput=()=>{const v=parseFloat(rateIn.value);if(v>0){rate=v;store.set('kaku-rate',rate);refresh();DAYS.forEach(d=>d.items.forEach(it=>memos[it.id]&&renderMemo(it.id)))}};
+$('#hotels').innerHTML=HOTELS.map(([d,n,m,w,p])=>`<tr><td>${d}</td><td>${esc(n)}<a class="tbtn" href="${mapUrl(m)}" target="_blank" rel="noopener">📍 地圖</a>${w?`<a class="tbtn" href="${w}" target="_blank" rel="noopener">🔗 官網</a>`:''}</td><td>${nt(p)}</td></tr>`).join('');
 
-/* today / now (Japan time) */
+/* ---------- shopping ---------- */
+function renderShop(){const ul=$('#shop');ul.innerHTML=shop.length?shop.map((s,i)=>`<li class="${s.d?'done':''}"><input type="checkbox" ${s.d?'checked':''} aria-label="已購買"><span>${esc(s.t)}</span><button class="del" aria-label="刪除" data-i="${i}">✕</button></li>`).join(''):'<li class="empty">還沒有項目。</li>';
+  $$('input',ul).forEach((c,i)=>c.onchange=()=>{shop[i].d=c.checked;store.set('kaku-shop',shop);renderShop()});$$('.del',ul).forEach(b=>b.onclick=()=>{shop.splice(+b.dataset.i,1);store.set('kaku-shop',shop);renderShop()});
+  const auto=[];DAYS.forEach(d=>d.items.forEach(it=>{const m=memos[it.id];if(m&&m.buy)m.buy.split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach(s=>auto.push([d.n,it.n,s]))}));
+  $('#shop-auto').innerHTML=auto.length?auto.map(([n,nm,s])=>`<li><span style="font-size:14px">🛒</span><span>${esc(s)}<small class="from">Day ${n}・${esc(nm)}</small></span><span></span></li>`).join(''):'<li class="empty">卡片備註裡還沒寫「要買的東西」。</li>'}
+$('#shopform').onsubmit=e=>{e.preventDefault();const inp=$('#shopin'),t=inp.value.trim();if(!t)return;shop.push({t,d:false});store.set('kaku-shop',shop);inp.value='';renderShop()};
+
+/* ---------- backup ---------- */
+async function buildBackup(){return{v:2,at:new Date().toISOString(),plan:DAYS,memos,done,shop,rate,photos:await idb.all().catch(()=>({}))}}
+$('#bk-dl').onclick=async()=>{const data=JSON.stringify(await buildBackup());const blob=new Blob([data],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`kaku-trip-backup-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);toast('已產生備份檔')};
+$('#bk-up').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const b=JSON.parse(r.result);if(!b.plan)throw 0;confirmSheet('還原這份備份？','會覆蓋目前裝置上的行程、備註、照片和記帳。',async()=>{DAYS=b.plan;memos=b.memos||{};done=b.done||{};shop=b.shop||[];rate=b.rate||0.2;savePlan();store.set('kaku-memos',memos);store.set('kaku-done',done);store.set('kaku-shop',shop);store.set('kaku-rate',rate);rateIn.value=rate;for(const[k,v]of Object.entries(b.photos||{}))await idb.put(k,v).catch(()=>{});renderAll();show(cur);toast('已還原')})}catch(err){toast('不是有效的備份檔')}};r.readAsText(f);e.target.value=''};
+$('#bk-reset').onclick=()=>confirmSheet('重設行程為原始版本？','你在網站上新增、修改、調順序的行程會回到我幫你建的版本；備註、照片、記帳會保留（對應不到的項目會看不到）。',()=>{DAYS=JSON.parse(JSON.stringify(DEFAULT_DAYS));DAYS.forEach(d=>d.items.forEach((it,i)=>it.id=d.n+'-'+i));savePlan();renderAll();show(cur);toast('已重設')});
+(async()=>{try{const n=Object.keys(memos).length,p=Object.keys(await idb.all()).length;$('#bk-size').textContent=`目前：${n} 張卡片有備註、${p} 張照片。`}catch(e){}})();
+
+/* ---------- today / now ---------- */
 function tick(){
   const j=new Date(Date.now()+9*3600e3),md=`${j.getUTCMonth()+1}/${j.getUTCDate()}`,now=j.getUTCHours()*60+j.getUTCMinutes();
-  const mins=s=>{const[h,m]=s.split(':').map(Number);return h*60+m};
-  const cd=$('#countdown');const dep=Date.UTC(2026,10,21,14,55)-8*3600e3;const dd=Math.ceil((dep-Date.now())/864e5);
-  cd.textContent=dd>0?`出發倒數 ${dd} 天`:dd===0?'今天出發！':'';
-  DAYS.forEach(d=>{const nx=$('#nx-'+d.n);const today=j.getUTCFullYear()===2026&&d.date===md;
-    $('#tab-'+d.n).classList.toggle('today',today);
-    let cur=null,next=null;
-    d.items.forEach((it,i)=>{const[a,b]=it.t.split('-'),A=mins(a),B=mins(b),li=$('#li-'+d.n+'-'+i),on=today&&now>=A&&now<B;
-      li.classList.toggle('now',on);$('.badge.now',li).hidden=!on;if(on)cur=it;if(!next&&today&&A>now)next=[it,A-now]});
-    if(today&&(cur||next)){nx.hidden=false;nx.innerHTML=(cur?`<b>進行中</b> ${cur.i} ${esc(cur.n)}`:'')+(next?`${cur?'　・　':''}<b>接下來</b> ${next[0].i} ${esc(next[0].n)}（${next[1]} 分後）`:'')}else nx.hidden=true});
-  return j.getUTCFullYear()===2026?DAYS.find(d=>d.date===md):null;
+  const dep=Date.UTC(2026,10,21,14,55)-8*3600e3,dd=Math.ceil((dep-Date.now())/864e5);
+  $('#countdown').textContent=dd>0?`出發倒數 ${dd} 天`:dd===0?'今天出發！':'';
+  let td=null;
+  DAYS.forEach(d=>{const nx=$('#nx-'+d.n);const today=j.getUTCFullYear()===2026&&d.date===md;if(today)td=d;
+    $('#tab-'+d.n).classList.toggle('today',today);let c=null,next=null;
+    d.items.forEach(it=>{const[a,b]=it.t.split('-'),A=mins(a),B=mins(b),li=$('#li-'+it.id),on=today&&now>=A&&now<B;if(!li)return;li.classList.toggle('now',on);$('.badge.now',li).hidden=!on;if(on)c=it;if(!next&&today&&A>now)next=[it,A-now]});
+    if(today&&(c||next)){nx.hidden=false;nx.innerHTML=(c?`<b>進行中</b> ${c.i} ${esc(c.n)}`:'')+(next?`${c?'　・　':''}<b>接下來</b> ${next[0].i} ${esc(next[0].n)}（${next[1]} 分後）`:'')}else nx.hidden=true});
+  return td;
 }
-const todayDay=tick();setInterval(tick,60000);
+setInterval(tick,60000);
 
-/* swipe between days on touch screens */
+/* ---------- nav ---------- */
+function show(n){cur=n;$$('.dt').forEach(t=>t.setAttribute('aria-selected',String(t.id==='tab-'+n)));$$('section.day').forEach(s=>s.classList.toggle('on',s.id==='day-'+n));$('#tab-'+n)?.scrollIntoView({inline:'center',block:'nearest'});store.set('kaku-day',n);window.scrollTo({top:0})}
 let sx=null,sy=null;
 main.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
-main.addEventListener('touchend',e=>{if(sx==null)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;sx=null;
-  if(Math.abs(dx)>70&&Math.abs(dy)<50&&typeof cur==='number'){if(dx<0&&cur<8)show(cur+1);else if(dx>0&&cur>1)show(cur-1)}},{passive:true});
-const rateIn=document.getElementById('rate');rateIn.value=rate;
-rateIn.oninput=()=>{const v=parseFloat(rateIn.value);if(v>0){rate=v;store.set('kaku-rate',rate);refresh()}};
+main.addEventListener('touchend',e=>{if(sx==null||editing)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;sx=null;if(Math.abs(dx)>70&&Math.abs(dy)<50&&typeof cur==='number'){if(dx<0&&cur<DAYS.length)show(cur+1);else if(dx>0&&cur>1)show(cur-1)}},{passive:true});
 
-/* hotels table */
-document.getElementById('hotels').innerHTML=HOTELS.map(([d,n,m,w,p])=>`<tr><td>${d}</td><td>${esc(n)}<a class="tbtn" href="${map(m)}" target="_blank" rel="noopener">📍 地圖</a>${w?`<a class="tbtn" href="${w}" target="_blank" rel="noopener">🔗 官網</a>`:''}</td><td>${nt(p)}</td></tr>`).join('');
-
-/* shopping list */
-const shopUl=document.getElementById('shop');
-function renderShop(){shopUl.innerHTML=shop.length?shop.map((s,i)=>`<li class="${s.d?'done':''}"><input type="checkbox" id="sh${i}" ${s.d?'checked':''} aria-label="已購買"><span>${esc(s.t)}</span><button class="del" aria-label="刪除" data-i="${i}">✕</button></li>`).join(''):'<li class="empty">還沒有項目，上面輸入想買的東西。</li>';
-  shopUl.querySelectorAll('input').forEach((c,i)=>c.onchange=()=>{shop[i].d=c.checked;store.set('kaku-shop',shop);renderShop()});
-  shopUl.querySelectorAll('.del').forEach(b=>b.onclick=()=>{shop.splice(+b.dataset.i,1);store.set('kaku-shop',shop);renderShop()})}
-document.getElementById('shopform').onsubmit=e=>{e.preventDefault();const inp=document.getElementById('shopin'),t=inp.value.trim();if(!t)return;shop.push({t,d:false});store.set('kaku-shop',shop);inp.value='';renderShop()};
-if(!shop.length&&store.get('kaku-shop',null)===null){shop=[{t:"Onitsuka Tiger DELEGATION EX 淺灰虎爪紋 1183C431-020 ￥18,700",d:false},{t:"Onitsuka Tiger DELEGATION EX 軍綠白虎爪紋 1183C429-202",d:false}]}
-renderShop();
-
-/* tabs */
-let cur=1;
-function show(n){cur=n;
-  document.querySelectorAll('.dt').forEach(t=>t.setAttribute('aria-selected',String(t.id==='tab-'+n)));
-  document.querySelectorAll('section.day').forEach(s=>s.classList.toggle('on',s.id==='day-'+n));
-  document.getElementById('tab-'+n)?.scrollIntoView({inline:'center',block:'nearest'});
-  store.set('kaku-day',n);window.scrollTo({top:0});
-}
-document.querySelectorAll('.dt').forEach(t=>t.onclick=()=>show(t.id.replace('tab-','')==='info'?'info':+t.id.replace('tab-','')));
+renderAll();
+const todayDay=tick();
 let start=todayDay?todayDay.n:store.get('kaku-day',1);
 const h=location.hash.replace('#','');if(/^day\d$/.test(h))start=+h.slice(3);else if(h==='info')start='info';
-if(start!=='info'&&!(start>=1&&start<=8))start=1;
-refresh();show(start);
+if(start!=='info'&&!(start>=1&&start<=DAYS.length))start=1;
+show(start);
 </script>
 
 </body>
